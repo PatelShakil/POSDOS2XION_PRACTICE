@@ -9,6 +9,7 @@ namespace POSDOS2XION
 {
     public partial class Program : Form
     {
+        [STAThread]
         static void Main(string[] args)
         {
             Application.EnableVisualStyles();
