@@ -152,21 +152,65 @@ namespace POSDOS2XION
 
         private void ReadExcelFile(string filePath)
         {
-            SpreadSheet.Spreadsheet doc = new SpreadSheet.Spreadsheet();
-            doc.LoadFromFile(filePath);
-            SpreadSheet.Worksheet ws = doc.Worksheets.ByName("Sheet1");
-            var text = "";
-            for(int i = 0; i < 3; i++)
+            string selectedDatabase = comboBox1.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedDatabase))
             {
-                for(int j = 0; j< 3; j++)
-                {
-                    text += ws.Cell(i, j) + ",";
-                }
-                text += "\n";
-
+                MessageBox.Show("Please select a database.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
-            label8.Text = text;
 
+            try
+            {
+                string connectionStringWithDatabase = $"{connectionString};Initial Catalog={selectedDatabase}";
+
+                using (SqlConnection connection = new SqlConnection(connectionStringWithDatabase))
+                {
+                    connection.Open();
+                    SpreadSheet.Spreadsheet doc = new SpreadSheet.Spreadsheet();
+                    doc.LoadFromFile(filePath);
+                    SpreadSheet.Worksheet ws = doc.Worksheets.ByName("Sheet1");
+
+                    for (int i = 1; i <= ws.UsedRangeRowMax; i++)
+                    {
+                        var stock_id = GetStockId();
+                        var code = ws.Cell(i, 1).Value; //CODE getting from excel file structure
+                        var detail = ws.Cell(i, 2).Value;//DESC
+                        var vatcode = ws.Cell(i, 23).ToString();//GST
+                        var serviceitem = 0;//serviceitem default
+                        var lastexc = int.Parse(ws.Cell(i, 3).ToString());//COST
+                        var lastincl = lastexc + (vatcode == "Z" ? 0 : (15 * lastexc) / 100);
+                        var suppliercode = 0;//suppliercode default
+
+                        string query = "INSERT INTO stock_master (code, detail, vatcode, serviceitem, lastexc, lastincl, suppliercode) " +
+                                       "VALUES ( @code, @detail, @vatcode, @serviceitem, @lastexc, @lastincl, @suppliercode)";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
+                        {
+                            command.Parameters.AddWithValue("@code", code);
+                            command.Parameters.AddWithValue("@detail", detail);
+                            command.Parameters.AddWithValue("@vatcode", vatcode);
+                            command.Parameters.AddWithValue("@serviceitem", serviceitem);
+                            command.Parameters.AddWithValue("@lastexc", lastexc);
+                            command.Parameters.AddWithValue("@lastincl", lastincl);
+                            command.Parameters.AddWithValue("@suppliercode", suppliercode);
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                MessageBox.Show("Data inserted into database successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error inserting data into database: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        public int GetStockId()
+        {
+            return 0;
         }
 
 
